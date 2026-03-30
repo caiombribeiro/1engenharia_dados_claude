@@ -1,0 +1,28 @@
+# Environment
+.env
+
+# Data files (download from Kaggle — not committed)
+data/*.csv
+data/*.zip
+
+# dbt artifacts
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# Airflow logs
+logs/
+airflow/logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db

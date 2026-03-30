@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"d:/DocumentosSSD/Cursos/Tecnologia/Projetos/projeto1/1engenharia_dados_claude/postgres\")",
+      "Bash(mkdir -p \"d:/DocumentosSSD/Cursos/Tecnologia/Projetos/projeto1/1engenharia_dados_claude/ingestion\")",
+      "Bash(mkdir -p \"d:/DocumentosSSD/Cursos/Tecnologia/Projetos/projeto1/1engenharia_dados_claude/dbt/models/staging\")",
+      "Bash(mkdir -p \"d:/DocumentosSSD/Cursos/Tecnologia/Projetos/projeto1/1engenharia_dados_claude/dbt/models/marts\")",
+      "Bash(mkdir -p \"d:/DocumentosSSD/Cursos/Tecnologia/Projetos/projeto1/1engenharia_dados_claude/dbt/tests\")"
+    ]
+  }
+}

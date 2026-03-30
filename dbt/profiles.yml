@@ -1,0 +1,12 @@
+olist:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host:     "{{ env_var('OLIST_DB_HOST', 'localhost') }}"
+      port:     "{{ env_var('OLIST_DB_PORT', '5432') | int }}"
+      user:     "{{ env_var('OLIST_DB_USER', 'olist') }}"
+      password: "{{ env_var('OLIST_DB_PASSWORD', 'olist') }}"
+      dbname:   "{{ env_var('OLIST_DB_NAME', 'olist') }}"
+      schema: staging
+      threads: 4

@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: mart_revenue_by_state
+    description: >
+      Revenue, order volume and average ticket per Brazilian state.
+      Grain: one row per (state, year). Includes only delivered orders.
+    columns:
+      - name: state
+        description: "Brazilian state abbreviation (e.g. SP, RJ)."
+        tests: [not_null]
+      - name: year
+        tests: [not_null]
+      - name: total_orders
+        description: "Number of delivered orders placed by customers in this state."
+        tests: [not_null]
+      - name: total_revenue
+        description: "Sum of all payment values for delivered orders in this state (R$)."
+        tests: [not_null]
+      - name: avg_ticket
+        description: "Average order value in this state (R$)."
+
+  - name: mart_monthly_orders
+    description: >
+      Monthly order volume, revenue and status breakdown across Brazil.
+      Grain: one row per (order_month, order_status).
+    columns:
+      - name: order_month
+        description: "First day of the month (date truncated)."
+        tests: [not_null]
+      - name: status
+        tests: [not_null]
+      - name: total_orders
+        tests: [not_null]
+
+  - name: mart_avg_ticket_by_category
+    description: >
+      Average ticket, revenue and freight ratio per product category.
+      Grain: one row per category. Includes only delivered orders.
+    columns:
+      - name: category
+        description: "English product category name."
+        tests: [not_null, unique]
+      - name: total_orders
+        tests: [not_null]
+      - name: avg_ticket
+        description: "Average item revenue per order for this category (R$, excludes freight)."

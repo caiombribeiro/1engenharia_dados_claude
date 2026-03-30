@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: "Raw tables loaded directly from Olist CSV files — no transformations applied."
+    tables:
+      - name: orders
+        description: "One row per order. Contains status and timestamps for each order lifecycle event."
+      - name: order_items
+        description: "One row per item within an order. Contains price, freight and seller info."
+      - name: customers
+        description: "Customer geolocation and ID deduplication data."
+      - name: products
+        description: "Product catalog with dimensions, weight and category (in Portuguese)."
+      - name: sellers
+        description: "Seller location data."
+      - name: order_payments
+        description: "Payment methods and values per order. One order can have multiple payments."
+      - name: order_reviews
+        description: "Customer reviews with score and optional comment."
+      - name: geolocation
+        description: "Latitude/longitude by Brazilian zip code prefix."
+      - name: product_category_name_translation
+        description: "Lookup table: Portuguese category name → English category name."
