@@ -52,67 +52,67 @@ Raw CSV files are ingested into PostgreSQL, transformed with dbt, and orchestrat
 
 ### Docker & Docker Compose
 
-Docker permite empacotar uma aplicação junto com todas as suas dependências em um **container** — um ambiente isolado que roda igual em qualquer máquina, independente do sistema operacional.
+Docker packages an application together with all its dependencies into a **container** — an isolated environment that runs identically on any machine, regardless of the host operating system.
 
-O `docker-compose.yml` define e sobe todos os serviços do projeto com um único comando:
+The `docker-compose.yml` defines and starts all project services with a single command:
 
-| Service | O que faz |
+| Service | Role |
 |---|---|
-| `postgres` | Banco de dados PostgreSQL com os schemas `raw`, `staging` e `marts` |
-| `airflow-init` | Roda uma vez só: inicializa o banco do Airflow e cria o usuário admin |
-| `airflow-webserver` | Serve a UI do Airflow em `http://localhost:8080` |
-| `airflow-scheduler` | Monitora as DAGs e agenda/executa as tasks |
+| `postgres` | PostgreSQL database hosting the `raw`, `staging` and `marts` schemas |
+| `airflow-init` | One-shot container: initializes the Airflow database and creates the admin user |
+| `airflow-webserver` | Serves the Airflow UI at `http://localhost:8080` |
+| `airflow-scheduler` | Monitors DAGs and triggers task execution on schedule |
 
-Todos os serviços do Airflow usam a mesma imagem customizada (definida no `Dockerfile`), que parte da imagem oficial do Airflow e instala o `dbt-postgres`, `pandas` e `psycopg2` em cima.
+All Airflow services share the same custom image (defined in `Dockerfile`), which extends the official Airflow image and adds `dbt-postgres`, `pandas` and `psycopg2`.
 
-Os dados são compartilhados entre containers via **volumes** — por exemplo, a pasta `./dbt` do seu computador é montada como `/opt/dbt` dentro dos containers do Airflow, o que permite que o scheduler execute os modelos dbt sem precisar copiá-los para dentro da imagem.
+Data is shared between containers via **volumes** — for example, the local `./dbt` folder is mounted as `/opt/dbt` inside the Airflow containers, allowing the scheduler to run dbt models without copying files into the image.
 
 ---
 
 ### Apache Airflow
 
-Airflow é uma plataforma de **orquestração de pipelines de dados**. Em vez de rodar scripts manualmente ou com cron jobs soltos, você define um pipeline como um **DAG** (Directed Acyclic Graph) — um conjunto de tasks com dependências entre elas.
+Airflow is a **data pipeline orchestration** platform. Instead of running scripts manually or with loose cron jobs, you define a pipeline as a **DAG** (Directed Acyclic Graph) — a set of tasks with explicit dependencies between them.
 
-Neste projeto, a DAG `olist_etl_pipeline` define 6 tasks em sequência:
+In this project, the `olist_etl_pipeline` DAG defines 6 tasks in sequence:
 
 ```
 check_files → ingest_raw → dbt_deps → dbt_staging → dbt_marts → dbt_test
 ```
 
-| Task | Tipo | O que faz |
+| Task | Operator | What it does |
 |---|---|---|
-| `check_files` | PythonOperator | Verifica se todos os 9 CSVs estão presentes antes de começar |
-| `ingest_raw` | PythonOperator | Carrega os CSVs para o schema `raw` do PostgreSQL |
-| `dbt_deps` | BashOperator | Instala os pacotes dbt (ex: `dbt_utils`) |
-| `dbt_staging` | BashOperator | Executa os 7 models de staging (`dbt run --select staging`) |
-| `dbt_marts` | BashOperator | Executa os 3 models de marts (`dbt run --select marts`) |
-| `dbt_test` | BashOperator | Roda os 32 testes de qualidade de dados (`dbt test`) |
+| `check_files` | PythonOperator | Verifies all 9 CSV files are present before any work begins |
+| `ingest_raw` | PythonOperator | Loads the CSVs into the `raw` schema in PostgreSQL |
+| `dbt_deps` | BashOperator | Installs dbt packages (e.g. `dbt_utils`) |
+| `dbt_staging` | BashOperator | Runs the 7 staging models (`dbt run --select staging`) |
+| `dbt_marts` | BashOperator | Runs the 3 mart models (`dbt run --select marts`) |
+| `dbt_test` | BashOperator | Executes all 32 data quality tests (`dbt test`) |
 
-Se qualquer task falhar, o Airflow para a execução e marca as tasks seguintes como bloqueadas — garantindo que dados ruins não avancem para o próximo estágio.
+If any task fails, Airflow halts execution and marks all downstream tasks as blocked — ensuring bad data never advances to the next stage.
 
-A DAG está configurada com `schedule_interval="@daily"`, ou seja, roda automaticamente uma vez por dia. Pode ser disparada manualmente pela UI sempre que necessário.
+The DAG is configured with `schedule_interval="@daily"` and can also be triggered manually from the UI at any time.
 
 ---
 
 ### dbt (data build tool)
 
-dbt é uma ferramenta de **transformação de dados dentro do banco de dados**. Em vez de escrever scripts Python para transformar dados e salvar resultados, você escreve **SQL puro** e o dbt cuida de criar as views e tabelas no PostgreSQL na ordem certa.
+dbt is a **transformation layer that runs inside the database**. Instead of writing Python scripts to transform data and save results, you write **pure SQL** and dbt handles creating views and tables in PostgreSQL in the correct dependency order.
 
-O projeto segue a arquitetura em duas camadas:
+This project follows a two-layer architecture:
 
-#### Camada Staging — `dbt/models/staging/`
+#### Staging Layer — `dbt/models/staging/`
 
-Views criadas sobre o schema `raw`. Cada model corresponde a uma tabela bruta e tem como único objetivo **limpar e padronizar** os dados:
+Views built directly on top of the `raw` schema. Each model maps to one raw table and has a single responsibility: **clean and standardize** the data.
 
-- Converter colunas de texto para os tipos corretos (`::timestamp`, `::numeric`, `::int`)
-- Renomear colunas para snake_case consistente
-- Tratar valores nulos e strings vazias
-- Normalizar campos de texto (ex: `upper(state)`, `initcap(city)`)
+- Cast text columns to proper types (`::timestamp`, `::numeric`, `::int`)
+- Rename columns to consistent snake_case
+- Handle nulls and empty strings
+- Normalize text fields (e.g. `upper(state)`, `initcap(city)`)
 
-As views de staging **não duplicam dados** — elas são apenas uma camada de leitura sobre o `raw`.
+Staging views **do not duplicate data** — they are a read-only transformation layer over `raw`.
 
 ```sql
--- Exemplo: stg_orders.sql
+-- Example: stg_orders.sql
 select
     order_id,
     customer_id,
@@ -124,24 +124,24 @@ from {{ source('raw', 'orders') }}
 where order_id is not null
 ```
 
-#### Camada Marts — `dbt/models/marts/`
+#### Marts Layer — `dbt/models/marts/`
 
-Tabelas materializadas que respondem **perguntas de negócio**. São construídas em cima dos models de staging — nunca acessam o `raw` diretamente.
+Materialized tables that answer **business questions**. Built on top of staging models — they never access `raw` directly.
 
-| Model | Pergunta respondida |
+| Model | Business question |
 |---|---|
-| `mart_revenue_by_state` | Quais estados geram mais receita? Qual o ticket médio por estado/ano? |
-| `mart_monthly_orders` | Como o volume de pedidos evolui mês a mês? Quantos foram entregues vs cancelados? |
-| `mart_avg_ticket_by_category` | Quais categorias de produto têm o maior ticket médio? Qual o peso do frete por categoria? |
+| `mart_revenue_by_state` | Which states generate the most revenue? What is the average ticket per state per year? |
+| `mart_monthly_orders` | How does order volume trend month over month? How many were delivered vs cancelled? |
+| `mart_avg_ticket_by_category` | Which product categories have the highest average ticket? What share of revenue is freight? |
 
-#### Testes de qualidade de dados
+#### Data Quality Tests
 
-O dbt executa **32 testes automaticamente** após cada run:
+dbt runs **32 tests automatically** after every run:
 
-- **Testes genéricos** (definidos em `_schema.yml`): `not_null`, `unique`, `accepted_values`
-- **Testes singulares** (em `tests/`): queries SQL customizadas que retornam zero linhas se o dado estiver correto
+- **Generic tests** (defined in `_schema.yml`): `not_null`, `unique`, `accepted_values`
+- **Singular tests** (in `tests/`): custom SQL queries that return zero rows when data is correct
 
-Se qualquer teste falhar, o Airflow marca a DAG como falha — impedindo que dados inconsistentes alimentem análises.
+If any test fails, Airflow marks the DAG run as failed — preventing inconsistent data from reaching downstream consumers.
 
 ---
 
